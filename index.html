@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💧 Water Guardian | charity: water</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <img src="img/water-can.png" alt="Water can" class="corner-water-can">
+
+    <!-- Custom cursor -->
+    <div id="custom-cursor">🪣</div>
+
+    <!-- Level Up & Disqualified Banners -->
+    <div class="banner" id="level-up-banner">
+        LEVEL UP! 🎉
+        <div class="sub" id="levelup-sub">Level 2</div>
+    </div>
+    <div class="banner" id="disq-banner">
+        DISQUALIFIED! ☠️
+        <div class="sub">Too many dirty drops!</div>
+    </div>
+
+    <!-- HEADER -->
+    <div class="header">
+        <h1 class="game-title">💧 WATER GUARDIAN</h1>
+        <p class="game-subtitle">charity: water — every drop counts</p>
+    </div>
+
+    <!-- HUD -->
+    <div class="hud">
+        <div class="hud-item">
+            <div class="hud-label">Score</div>
+            <div class="hud-value yellow" id="score-display">0</div>
+        </div>
+        <div class="hud-item">
+            <div class="level-badge" id="level-display">LEVEL 1</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Time</div>
+            <div class="hud-value red" id="timer-display">30</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Lives</div>
+            <div id="lives-display">❤️❤️❤️</div>
+        </div>
+        <button class="btn-reset" id="btn-reset">↺ RESET</button>
+    </div>
+
+    <!-- TIMER BAR -->
+    <div class="timer-bar-wrap">
+        <div id="timer-bar"></div>
+    </div>
+
+    <!-- GAME AREA -->
+    <div class="game-wrap" id="game-area">
+
+        <div class="ground"></div>
+
+        <!-- Bucket -->
+        <div id="bucket">
+            <div class="bucket-handle"></div>
+            <div class="bucket-body">
+                <div class="bucket-water" id="bucket-water"></div>
+            </div>
+        </div>
+
+        <!-- Game Over Overlay (inside game area) -->
+        <div id="game-over-overlay">
+            <div class="over-icon" id="over-icon">🏆</div>
+            <div class="over-title" id="over-title">YOU WIN!</div>
+            <div class="over-message" id="over-message">Amazing job!</div>
+            <div class="over-stats">
+                <div class="over-stat">
+                    <div class="over-stat-val" id="stat-score">0</div>
+                    <div class="over-stat-lbl">Score</div>
+                </div>
+                <div class="over-stat">
+                    <div class="over-stat-val" id="stat-caught">0</div>
+                    <div class="over-stat-lbl">Caught</div>
+                </div>
+                <div class="over-stat">
+                    <div class="over-stat-val" id="stat-level">1</div>
+                    <div class="over-stat-lbl">Level</div>
+                </div>
+            </div>
+            <button class="btn-play-again" id="btn-play-again">▶ PLAY AGAIN</button>
+        </div>
+
+    </div>
+
+    <!-- PROGRESS BAR -->
+    <div class="progress-wrap">
+        <div class="progress-label">
+            <span>Progress</span>
+            <span id="progress-text">0 / 8 drops</span>
+        </div>
+        <div class="progress-bar-bg">
+            <div id="progress-bar"></div>
+        </div>
+    </div>
+
+    <!-- MESSAGE AREA -->
+    <div id="message-area"></div>
+
+    <!-- HOW TO PLAY -->
+    <div class="how-to">
+        <div class="how-item"><span>💧</span><span>Catch clean drops</span></div>
+        <div class="how-item"><span>☠️</span><span>Avoid dirty drops</span></div>
+        <div class="how-item"><span>⏱️</span><span>30 sec per level</span></div>
+        <div class="how-item"><span>🏆</span><span>Complete 3 levels</span></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
