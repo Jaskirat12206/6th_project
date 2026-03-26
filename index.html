@@ -4,17 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>💧 Water Guardian | charity: water</title>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-    <img src="img/water-can.png" alt="Water can" class="corner-water-can">
-
     <!-- Custom cursor -->
     <div id="custom-cursor">🪣</div>
 
-    <!-- Level Up & Disqualified Banners -->
+    <!-- Banners -->
     <div class="banner" id="level-up-banner">
         LEVEL UP! 🎉
         <div class="sub" id="levelup-sub">Level 2</div>
@@ -29,6 +27,28 @@
         <h1 class="game-title">💧 WATER GUARDIAN</h1>
         <p class="game-subtitle">charity: water — every drop counts</p>
     </div>
+
+    <!-- DIFFICULTY SELECTOR -->
+    <div class="difficulty-wrap" id="difficulty-wrap">
+        <p class="difficulty-label">SELECT DIFFICULTY</p>
+        <div class="difficulty-btns">
+            <button class="btn-diff" id="diff-easy" onclick="setDifficulty('easy')">
+                💧 EASY
+                <span>60s • Few dirty drops</span>
+            </button>
+            <button class="btn-diff active" id="diff-normal" onclick="setDifficulty('normal')">
+                ⚡ NORMAL
+                <span>30s • Balanced</span>
+            </button>
+            <button class="btn-diff" id="diff-hard" onclick="setDifficulty('hard')">
+                🔥 HARD
+                <span>20s • Many dirty drops</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- START BUTTON -->
+    <button class="btn-start" id="btn-start">💧 START GAME</button>
 
     <!-- HUD -->
     <div class="hud">
@@ -46,6 +66,10 @@
         <div class="hud-item">
             <div class="hud-label">Lives</div>
             <div id="lives-display">❤️❤️❤️</div>
+        </div>
+        <div class="hud-item">
+            <div class="hud-label">Difficulty</div>
+            <div class="hud-value yellow" id="diff-display">NORMAL</div>
         </div>
         <button class="btn-reset" id="btn-reset">↺ RESET</button>
     </div>
@@ -68,7 +92,7 @@
             </div>
         </div>
 
-        <!-- Game Over Overlay (inside game area) -->
+        <!-- Game Over Overlay -->
         <div id="game-over-overlay">
             <div class="over-icon" id="over-icon">🏆</div>
             <div class="over-title" id="over-title">YOU WIN!</div>
@@ -110,9 +134,23 @@
     <div class="how-to">
         <div class="how-item"><span>💧</span><span>Catch clean drops</span></div>
         <div class="how-item"><span>☠️</span><span>Avoid dirty drops</span></div>
-        <div class="how-item"><span>⏱️</span><span>30 sec per level</span></div>
+        <div class="how-item"><span>⏱️</span><span>Beat the timer</span></div>
         <div class="how-item"><span>🏆</span><span>Complete 3 levels</span></div>
     </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="footer-logo">💧 charity: water</div>
+        <p class="footer-mission">
+            charity: water is a nonprofit bringing clean and safe drinking water to people in developing countries.
+        </p>
+        <div class="footer-links">
+            <a href="https://www.charitywater.org" target="_blank" class="footer-link">🌐 Visit Website</a>
+            <a href="https://www.charitywater.org/donate" target="_blank" class="footer-link donate">💛 Donate Now</a>
+            <a href="https://www.charitywater.org/our-work" target="_blank" class="footer-link">📖 Our Work</a>
+        </div>
+        <p class="footer-copy">Every $40 can give one person clean water for life.</p>
+    </footer>
 
     <script src="script.js"></script>
 </body>

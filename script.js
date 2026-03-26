@@ -1,35 +1,64 @@
-// ===== GAME CONFIG =====
+// ===== DIFFICULTY SETTINGS =====
+const DIFFICULTIES = {
+    easy: {
+        label: 'EASY',
+        timeLimit: 60,
+        dirtyBonus: -0.10,   // less dirty drops
+        speedBonus: -0.5,    // slower drops
+        spawnBonus: 400,     // slower spawning
+    },
+    normal: {
+        label: 'NORMAL',
+        timeLimit: 30,
+        dirtyBonus: 0,
+        speedBonus: 0,
+        spawnBonus: 0,
+    },
+    hard: {
+        label: 'HARD',
+        timeLimit: 20,
+        dirtyBonus: 0.15,    // more dirty drops
+        speedBonus: 1.5,     // faster drops
+        spawnBonus: -300,    // faster spawning
+    }
+};
+
+// ===== LEVEL CONFIG =====
 const LEVELS = [
-    { speed: 2.5, spawnRate: 1800, dirtyChance: 0.20, dropsNeeded: 8,  timeLimit: 30 },
-    { speed: 3.5, spawnRate: 1400, dirtyChance: 0.30, dropsNeeded: 12, timeLimit: 30 },
-    { speed: 5.0, spawnRate: 1000, dirtyChance: 0.40, dropsNeeded: 16, timeLimit: 30 },
+    { speed: 2.5, spawnRate: 1800, dirtyChance: 0.20, dropsNeeded: 8  },
+    { speed: 3.5, spawnRate: 1400, dirtyChance: 0.30, dropsNeeded: 12 },
+    { speed: 5.0, spawnRate: 1000, dirtyChance: 0.40, dropsNeeded: 16 },
 ];
 
+// ===== MILESTONE MESSAGES =====
 const MILESTONES = [
-    { score: 50,  msg: "💧 50 points! A family has clean water!" },
-    { score: 150, msg: "🌊 150 points! A village well is forming!" },
-    { score: 300, msg: "⭐ 300 points! True Water Guardian!" },
+    { score: 30,  msg: "💧 Great start! Keep catching those drops!" },
+    { score: 80,  msg: "🌊 Halfway there! A family now has clean water!" },
+    { score: 150, msg: "⭐ Amazing! A village well is being built!" },
+    { score: 250, msg: "🏆 Incredible! You're a true Water Guardian!" },
+    { score: 350, msg: "💛 Legendary! You've changed lives today!" },
 ];
 
 const CONFETTI_COLORS = ['#FFC907', '#0077C0', '#FFFFFF', '#43A047', '#E53935', '#FF9800'];
 
 // ===== GAME STATE =====
-let score          = 0;
-let lives          = 3;
-let level          = 1;
-let dropsCaught    = 0;
-let dropsThisLevel = 0;
-let dropsNeeded    = 8;
-let timeLeft       = 30;
-let gameRunning    = false;
-let levelingUp     = false;
-let drops          = [];
-let shownMilestones = new Set();
-let dropInterval   = null;
-let timerInterval  = null;
-let animFrame      = null;
-let bucketX        = 50;
-let msgTimeout     = null;
+let currentDifficulty = 'normal';
+let score             = 0;
+let lives             = 3;
+let level             = 1;
+let dropsCaught       = 0;
+let dropsThisLevel    = 0;
+let dropsNeeded       = 8;
+let timeLeft          = 30;
+let gameRunning       = false;
+let levelingUp        = false;
+let drops             = [];
+let shownMilestones   = new Set();
+let dropInterval      = null;
+let timerInterval     = null;
+let animFrame         = null;
+let bucketX           = 50;
+let msgTimeout        = null;
 
 // ===== GET ELEMENTS =====
 const $ = id => document.getElementById(id);
@@ -49,6 +78,105 @@ const gameOverlay   = $('game-over-overlay');
 const levelUpBanner = $('level-up-banner');
 const disqBanner    = $('disq-banner');
 const cursorEl      = $('custom-cursor');
+const diffDisplay   = $('diff-display');
+
+// ===== SOUND EFFECTS (Web Audio API) =====
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function getAudioCtx() {
+    if(!audioCtx) audioCtx = new AudioCtx();
+    return audioCtx;
+}
+
+function playSound(type) {
+    try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if(type === 'clean') {
+            // Happy ding
+            osc.frequency.setValueAtTime(520, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(780, ctx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.2);
+
+        } else if(type === 'dirty') {
+            // Low thud
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.4, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.25);
+
+        } else if(type === 'levelup') {
+            // Rising fanfare
+            const notes = [440, 554, 659, 880];
+            notes.forEach(function(freq, i) {
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.connect(g);
+                g.connect(ctx.destination);
+                o.frequency.value = freq;
+                g.gain.setValueAtTime(0.3, ctx.currentTime + i * 0.12);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.2);
+                o.start(ctx.currentTime + i * 0.12);
+                o.stop(ctx.currentTime + i * 0.12 + 0.2);
+            });
+
+        } else if(type === 'win') {
+            // Victory chime
+            const notes = [523, 659, 784, 1047];
+            notes.forEach(function(freq, i) {
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.connect(g);
+                g.connect(ctx.destination);
+                o.frequency.value = freq;
+                g.gain.setValueAtTime(0.4, ctx.currentTime + i * 0.15);
+                g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.15 + 0.3);
+                o.start(ctx.currentTime + i * 0.15);
+                o.stop(ctx.currentTime + i * 0.15 + 0.3);
+            });
+
+        } else if(type === 'lose') {
+            // Descending sad
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(440, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.5);
+        }
+    } catch(e) {
+        // Sound not supported — silently skip
+    }
+}
+
+// ===== DIFFICULTY SELECTION =====
+function setDifficulty(diff) {
+    currentDifficulty = diff;
+
+    // Update button styles
+    document.querySelectorAll('.btn-diff').forEach(function(btn) {
+        btn.classList.remove('active');
+    });
+    $('diff-' + diff).classList.add('active');
+
+    // Update HUD display
+    diffDisplay.textContent = DIFFICULTIES[diff].label;
+
+    // Restart game with new difficulty
+    startGame();
+}
 
 // ===== CURSOR + BUCKET MOVEMENT =====
 document.addEventListener('mousemove', function(e) {
@@ -74,35 +202,42 @@ function moveBucket(x) {
 }
 
 // ===== BUTTON EVENTS =====
+$('btn-start').addEventListener('click', function() {
+    $('btn-start').classList.add('hidden');
+    startGame();
+});
 $('btn-reset').addEventListener('click', startGame);
 $('btn-play-again').addEventListener('click', startGame);
 
 // ===== START GAME =====
 function startGame() {
-    // Reset all state variables
+    // Reset all state
     score          = 0;
     lives          = 3;
     level          = 1;
     dropsCaught    = 0;
     dropsThisLevel = 0;
     dropsNeeded    = LEVELS[0].dropsNeeded;
-    timeLeft       = LEVELS[0].timeLimit;
     gameRunning    = true;
     levelingUp     = false;
     drops          = [];
     shownMilestones = new Set();
 
-    // Clear all existing drops from screen
+    // Set time based on difficulty
+    const diff = DIFFICULTIES[currentDifficulty];
+    timeLeft   = diff.timeLimit;
+
+    // Clear all existing drops and effects from DOM
     gameArea.querySelectorAll('.drop, .splash, .score-popup').forEach(function(el) {
         el.remove();
     });
 
-    // Clear all intervals and animation frames
+    // Clear all timers
     clearInterval(dropInterval);
     clearInterval(timerInterval);
     cancelAnimationFrame(animFrame);
 
-    // Reset visual elements
+    // Reset visuals
     bucketWater.style.height = '0%';
     bucketEl.style.left      = '50%';
     bucketX                  = 50;
@@ -111,14 +246,10 @@ function startGame() {
     timerBar.style.width     = '100%';
     gameOverlay.classList.remove('show');
 
-    // Update HUD and progress
     updateHUD();
     updateProgress();
+    showMessage('💧 Catch clean drops! Avoid dirty ones!', 3000);
 
-    // Show welcome message
-    showMessage('💧 Catch the clean drops! Avoid dirty ones!', 3000);
-
-    // Start game systems
     startSpawning();
     startTimer();
     gameLoop();
@@ -134,18 +265,17 @@ function startTimer() {
         timeLeft--;
         timerDisplay.textContent = timeLeft;
 
-        // Update timer bar width
-        const config = LEVELS[Math.min(level - 1, LEVELS.length - 1)];
-        const pct    = (timeLeft / config.timeLimit) * 100;
+        // Update timer bar
+        const diff   = DIFFICULTIES[currentDifficulty];
+        const pct    = (timeLeft / diff.timeLimit) * 100;
         timerBar.style.width = pct + '%';
 
-        // Danger zone - last 10 seconds
+        // Danger zone — last 10 seconds
         if(timeLeft <= 10) {
             timerBar.classList.add('danger');
             timerDisplay.style.color = '#FF6B6B';
         }
 
-        // Time is up!
         if(timeLeft <= 0) {
             clearInterval(timerInterval);
             endGame(false, 'timeout');
@@ -156,25 +286,34 @@ function startTimer() {
 // ===== SPAWN DROPS =====
 function startSpawning() {
     clearInterval(dropInterval);
+
     const config = LEVELS[Math.min(level - 1, LEVELS.length - 1)];
-    dropInterval = setInterval(spawnDrop, config.spawnRate);
+    const diff   = DIFFICULTIES[currentDifficulty];
+
+    // Apply difficulty modifiers to spawn rate
+    const spawnRate = Math.max(400, config.spawnRate + diff.spawnBonus);
+    dropInterval = setInterval(spawnDrop, spawnRate);
 }
 
 function spawnDrop() {
     if(!gameRunning || levelingUp) return;
 
-    const config  = LEVELS[Math.min(level - 1, LEVELS.length - 1)];
-    const isDirty = Math.random() < config.dirtyChance;
-    const rect    = gameArea.getBoundingClientRect();
-    const x       = Math.random() * (rect.width - 50) + 10;
+    const config = LEVELS[Math.min(level - 1, LEVELS.length - 1)];
+    const diff   = DIFFICULTIES[currentDifficulty];
 
-    // Create drop element
+    // Apply difficulty to dirty chance
+    const dirtyChance = Math.min(0.8, config.dirtyChance + diff.dirtyBonus);
+    const isDirty     = Math.random() < dirtyChance;
+
+    const rect = gameArea.getBoundingClientRect();
+    const x    = Math.random() * (rect.width - 50) + 10;
+
+    // Create drop element — added to DOM
     const el = document.createElement('div');
     el.classList.add('drop', isDirty ? 'dirty' : 'clean');
     el.style.left = x + 'px';
     el.style.top  = '-50px';
 
-    // Add SVG shape
     if(isDirty) {
         el.innerHTML = `<svg viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
             <path d="M18 2C18 2 4 18 4 28C4 36.8 10.3 43 18 43C25.7 43 32 36.8 32 28C32 18 18 2 18 2Z"
@@ -189,12 +328,14 @@ function spawnDrop() {
         </svg>`;
     }
 
-    // Store drop data in an object
+    // Apply difficulty to speed
+    const speed = config.speed + diff.speedBonus + Math.random() * 1.5;
+
     const drop = {
         el:      el,
         x:       x,
         y:       -50,
-        speed:   config.speed + Math.random() * 1.5,
+        speed:   speed,
         isDirty: isDirty,
         caught:  false
     };
@@ -210,7 +351,6 @@ function gameLoop() {
     const rect       = gameArea.getBoundingClientRect();
     const bucketLeft = (bucketX / 100) * rect.width;
 
-    // Loop through all drops
     for(let i = drops.length - 1; i >= 0; i--) {
         const drop = drops[i];
         if(drop.caught) continue;
@@ -223,22 +363,29 @@ function gameLoop() {
         const bucketBottom = rect.height - 12;
         const bucketTop    = bucketBottom - 50;
 
-        // Check if caught by bucket
+        // Check catch
         if(drop.y + 42 >= bucketTop &&
            drop.y <= bucketBottom &&
            cx >= bucketLeft - 40 &&
            cx <= bucketLeft + 40) {
 
             drop.caught = true;
+
+            // Play caught animation THEN remove from DOM
+            drop.el.classList.add('caught');
+            setTimeout(function() {
+                if(drop.el.parentNode) drop.el.remove();
+            }, 300);
+
             catchDrop(drop, cx, drop.y);
-            drop.el.remove();
             drops.splice(i, 1);
 
-        // Check if missed (hit ground)
+        // Missed — remove from DOM when it hits ground
         } else if(drop.y > rect.height) {
             if(!drop.isDirty) {
                 createSplash(drop.x + 17, rect.height - 10, '💦');
             }
+            // Remove missed drop from DOM
             drop.el.remove();
             drops.splice(i, 1);
         }
@@ -250,21 +397,21 @@ function gameLoop() {
 // ===== CATCH DROP =====
 function catchDrop(drop, x, y) {
     if(drop.isDirty) {
-        // Dirty drop caught — lose a life
+        // Dirty drop — lose a life
         lives--;
         createSplash(x, y, '💀');
         showPopup(x, y, 'DIRTY! -1❤️', '#E53935');
         shakeScreen();
+        playSound('dirty');
         updateHUD();
 
-        // Check disqualification
         if(lives <= 0) {
             showDisqualified();
             return;
         }
 
     } else {
-        // Clean drop caught — earn points
+        // Clean drop — earn points
         const pts = 10 * level;
         score += pts;
         dropsCaught++;
@@ -272,11 +419,12 @@ function catchDrop(drop, x, y) {
 
         createSplash(x, y, '💧');
         showPopup(x, y, '+' + pts, '#FFC907');
+        playSound('clean');
         updateHUD();
         updateProgress();
         checkMilestone();
 
-        // Check if level is complete
+        // Check level complete
         if(dropsThisLevel >= dropsNeeded) {
             if(level >= 3) {
                 setTimeout(function() { endGame(true); }, 400);
@@ -293,33 +441,35 @@ function levelUp() {
     clearInterval(dropInterval);
     clearInterval(timerInterval);
 
-    // Remove all drops
-    drops.forEach(function(d) { d.el.remove(); });
+    // Remove all drops from DOM
+    drops.forEach(function(d) {
+        if(d.el.parentNode) d.el.remove();
+    });
     drops = [];
 
-    // Go to next level
     level++;
     dropsThisLevel = 0;
+    dropsNeeded    = LEVELS[Math.min(level - 1, LEVELS.length - 1)].dropsNeeded;
 
-    const config = LEVELS[Math.min(level - 1, LEVELS.length - 1)];
-    dropsNeeded  = config.dropsNeeded;
-    timeLeft     = config.timeLimit;
+    // Reset timer for new level
+    const diff = DIFFICULTIES[currentDifficulty];
+    timeLeft   = diff.timeLimit;
 
     // Show level up banner
     $('levelup-sub').textContent = 'Level ' + level;
     levelUpBanner.classList.add('show');
+    playSound('levelup');
     launchCelebration(false);
 
-    // After 2.5 seconds start next level
     setTimeout(function() {
         levelUpBanner.classList.remove('show');
         levelingUp = false;
         timerBar.classList.remove('danger');
         timerDisplay.style.color = '';
-        timerBar.style.width = '100%';
+        timerBar.style.width     = '100%';
         updateHUD();
         updateProgress();
-        showMessage('🚀 Level ' + level + '! Faster drops incoming!', 2000);
+        showMessage('🚀 Level ' + level + '! Getting harder!', 2000);
         startSpawning();
         startTimer();
     }, 2500);
@@ -332,11 +482,15 @@ function showDisqualified() {
     clearInterval(timerInterval);
     cancelAnimationFrame(animFrame);
 
-    drops.forEach(function(d) { d.el.remove(); });
+    // Remove all drops from DOM
+    drops.forEach(function(d) {
+        if(d.el.parentNode) d.el.remove();
+    });
     drops = [];
 
     disqBanner.classList.add('show');
     shakeScreen();
+    playSound('lose');
 
     setTimeout(function() {
         disqBanner.classList.remove('show');
@@ -344,39 +498,38 @@ function showDisqualified() {
     }, 2200);
 }
 
-// ===== SPLASH EFFECT =====
+// ===== EFFECTS =====
 function createSplash(x, y, emoji) {
-    const el      = document.createElement('div');
+    const el       = document.createElement('div');
     el.classList.add('splash');
     el.textContent = emoji;
     el.style.left  = (x - 14) + 'px';
     el.style.top   = (y - 8) + 'px';
     gameArea.appendChild(el);
+    // Remove splash from DOM after animation
     setTimeout(function() { el.remove(); }, 600);
 }
 
-// ===== SCORE POPUP =====
 function showPopup(x, y, text, color) {
-    const el          = document.createElement('div');
+    const el            = document.createElement('div');
     el.classList.add('score-popup');
-    el.textContent    = text;
-    el.style.color    = color;
-    el.style.left     = (x - 35) + 'px';
-    el.style.top      = (y - 16) + 'px';
+    el.textContent      = text;
+    el.style.color      = color;
+    el.style.left       = (x - 35) + 'px';
+    el.style.top        = (y - 16) + 'px';
     el.style.textShadow = '0 0 8px ' + color;
     gameArea.appendChild(el);
+    // Remove popup from DOM after animation
     setTimeout(function() { el.remove(); }, 900);
 }
 
-// ===== SCREEN SHAKE =====
 function shakeScreen() {
     gameArea.classList.remove('shaking');
-    void gameArea.offsetWidth; // Force reflow
+    void gameArea.offsetWidth;
     gameArea.classList.add('shaking');
     setTimeout(function() { gameArea.classList.remove('shaking'); }, 400);
 }
 
-// ===== SHOW MESSAGE =====
 function showMessage(text, duration) {
     clearTimeout(msgTimeout);
     messageArea.textContent = text;
@@ -391,7 +544,7 @@ function checkMilestone() {
     MILESTONES.forEach(function(m) {
         if(score >= m.score && !shownMilestones.has(m.score)) {
             shownMilestones.add(m.score);
-            showMessage(m.msg, 3000);
+            showMessage(m.msg, 3500);
         }
     });
 }
@@ -402,14 +555,14 @@ function updateHUD() {
     levelDisplay.textContent = 'LEVEL ' + level;
     timerDisplay.textContent = timeLeft;
 
-    // Update lives display
+    // Update lives with hearts
     let livesHTML = '';
     for(let i = 0; i < 3; i++) {
         livesHTML += i < lives ? '❤️' : '🖤';
     }
     livesDisplay.innerHTML = livesHTML;
 
-    // Update bucket water level
+    // Update bucket water fill
     const waterPct = (dropsThisLevel / dropsNeeded) * 80;
     bucketWater.style.height = waterPct + '%';
 }
@@ -417,7 +570,7 @@ function updateHUD() {
 // ===== UPDATE PROGRESS =====
 function updateProgress() {
     const pct = (dropsThisLevel / dropsNeeded) * 100;
-    progressBar.style.width = pct + '%';
+    progressBar.style.width  = pct + '%';
     progressText.textContent = dropsThisLevel + ' / ' + dropsNeeded + ' drops';
 }
 
@@ -425,25 +578,25 @@ function updateProgress() {
 function launchCelebration(isWin) {
     const count = isWin ? 150 : 50;
 
-    // Launch confetti
+    // Confetti loop
     for(let i = 0; i < count; i++) {
         setTimeout(function() {
-            const piece = document.createElement('div');
+            const piece    = document.createElement('div');
             piece.classList.add('confetti-piece');
-
             const color    = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
             const size     = Math.random() * 12 + 6;
             const isCircle = Math.random() > 0.5;
 
-            piece.style.left            = Math.random() * 100 + '%';
-            piece.style.background      = color;
-            piece.style.borderRadius    = isCircle ? '50%' : '2px';
-            piece.style.width           = size + 'px';
-            piece.style.height          = size + 'px';
+            piece.style.left              = Math.random() * 100 + '%';
+            piece.style.background        = color;
+            piece.style.borderRadius      = isCircle ? '50%' : '2px';
+            piece.style.width             = size + 'px';
+            piece.style.height            = size + 'px';
             piece.style.animationDuration = (Math.random() * 2 + 2) + 's';
-            piece.style.animationDelay  = (Math.random() * 0.5) + 's';
+            piece.style.animationDelay    = (Math.random() * 0.5) + 's';
 
             document.body.appendChild(piece);
+            // Remove confetti from DOM after animation
             setTimeout(function() { piece.remove(); }, 4000);
         }, i * 15);
     }
@@ -456,6 +609,7 @@ function launchCelebration(isWin) {
                 ring.classList.add('celebrate-ring');
                 ring.style.borderColor = CONFETTI_COLORS[r % CONFETTI_COLORS.length];
                 document.body.appendChild(ring);
+                // Remove ring from DOM after animation
                 setTimeout(function() { ring.remove(); }, 1000);
             }, r * 250);
         }
@@ -469,8 +623,10 @@ function endGame(won, reason) {
     clearInterval(timerInterval);
     cancelAnimationFrame(animFrame);
 
-    // Remove all drops
-    drops.forEach(function(d) { d.el.remove(); });
+    // Remove all remaining drops from DOM
+    drops.forEach(function(d) {
+        if(d.el.parentNode) d.el.remove();
+    });
     drops = [];
 
     // Update stats
@@ -478,12 +634,12 @@ function endGame(won, reason) {
     $('stat-caught').textContent = dropsCaught;
     $('stat-level').textContent  = level;
 
-    // Set message based on result
     if(won) {
         $('over-icon').textContent    = '🏆';
         $('over-title').textContent   = 'YOU WIN!';
         $('over-title').className     = 'over-title win';
         $('over-message').textContent = 'You brought clean water to the village! 💧';
+        playSound('win');
         launchCelebration(true);
 
     } else if(reason === 'timeout') {
@@ -491,19 +647,19 @@ function endGame(won, reason) {
         $('over-title').textContent   = "TIME'S UP!";
         $('over-title').className     = 'over-title lose';
         $('over-message').textContent = "The village ran out of time! Try again!";
+        playSound('lose');
 
     } else {
         $('over-icon').textContent    = '☠️';
         $('over-title').textContent   = 'DISQUALIFIED!';
         $('over-title').className     = 'over-title lose';
-        $('over-message').textContent = 'Too many dirty drops! The water is contaminated!';
+        $('over-message').textContent = 'Too many dirty drops! Try again!';
     }
 
-    // Show overlay after short delay
     setTimeout(function() {
         gameOverlay.classList.add('show');
     }, 400);
 }
 
-// ===== AUTO START =====
-startGame();
+// ===== WAIT FOR START BUTTON =====
+// Game starts when user clicks START GAME button
